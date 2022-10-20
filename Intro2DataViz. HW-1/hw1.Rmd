@@ -1,0 +1,216 @@
+---
+title: "hw1"
+output: html_document
+date: "2022-10-19"
+header-includes:
+- \usepackage[russian]{babel}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+```
+
+# Домашняя работа №1
+
+# # 1
+```{r load csv}
+insurance = read.csv('insurance_cost.csv', stringsAsFactors = T)
+summary(insurance)
+```
+
+# # 2
+```{r}
+ggplot(data = insurance, 
+       aes(x = age)) +
+  geom_histogram()
+```
+
+```{r}
+ggplot(data = insurance, 
+       aes(x = bmi)) +
+  geom_histogram()
+```
+
+```{r}
+ggplot(data = insurance, 
+       aes(x = children)) +
+  geom_histogram()
+```
+
+```{r}
+ggplot(data = insurance, 
+       aes(x = charges)) +
+  geom_histogram()
+```
+
+# # 3
+```{r}
+charges_mean <- round(mean(insurance$charges),1)
+charges_median <- round(median(insurance$charges), 1)
+
+charges_density_plot <- ggplot() +
+  geom_density(data = insurance, 
+       aes(x = charges)) +
+  geom_vline(aes(xintercept = charges_mean), color="#69b3a2", alpha=0.9,) +
+  geom_vline(aes(xintercept = charges_median), color = 'blue', alpha=0.9) +
+  annotate("text", 
+           x= 4000, 
+           y=0, 
+           label=paste0("Median=", charges_median),  color = 'blue', alpha=0.9) +
+  annotate("text", 
+           x= 20000, 
+           y=0, 
+           label=paste0("Mean=", charges_mean),  color="#69b3a2", alpha=0.9) +
+  theme_minimal() +
+  labs(x = 'Charges sum', y = 'Density')
+charges_density_plot
+```
+
+# # 4
+
+```{r}
+sex_box <- ggplot(data = insurance) +
+  geom_boxplot(aes(y = charges, x = sex)) +
+  theme_light() +
+  labs(x = 'Sex', y = 'Charges sum')
+
+smoker_box <-ggplot(data = insurance) +
+  geom_boxplot(aes(y = charges, x = smoker)) +
+  theme_light() +
+  labs(x = 'Smoker or not', y = 'Charges sum')
+
+region_box <- ggplot(data = insurance) +
+  geom_boxplot(aes(y = charges, x = region)) +
+  theme_light() +
+  labs(x = 'Region', y = 'Charges sum') +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+sex_box
+smoker_box
+region_box
+```
+
+# # 5
+
+```{r}
+combine_boxes <- ggarrange(sex_box, smoker_box, region_box,
+                          ncol = 3, nrow = 1) 
+combine_all <- ggarrange(charges_density_plot, combine_boxes,
+                          ncol = 1, nrow = 2)
+annotate_figure(combine_all, top = text_grob("Charges relations", 
+               color = "red", face = "bold", size = 14))
+```
+
+# # 6
+
+```{r}
+ggplot(data = insurance, 
+       aes(x = charges, group = region)) +
+  geom_density() +
+  facet_wrap(. ~ region, ncol = 1) +
+  geom_vline(aes(xintercept = charges_mean), color="#69b3a2", alpha=0.9,) +
+  geom_vline(aes(xintercept = charges_median), color = 'blue', alpha=0.9) +
+  annotate("text", 
+           x= 4000, 
+           y=1e-05, 
+           label=paste0("Median=", charges_median),  color = 'blue', alpha=0.9) +
+  annotate("text", 
+           x= 20000, 
+           y=1e-05, 
+           label=paste0("Mean=", charges_mean),  color="#69b3a2") +
+  theme_minimal() +
+  labs(x = 'Charges sum', y = 'Density')
+```
+
+# # 7
+
+```{r}
+age_charges_scatter <- ggplot(data = insurance, aes(x=age, y=charges)) + 
+  geom_point() + 
+  theme_light() +
+  theme(axis.title.x = element_text(size=14)) +
+  labs(x = 'Age', y = 'Charges')+
+  ggtitle('Age to charges')
+age_charges_scatter
+```
+
+
+# # 8
+
+```{r}
+age_charges_scatter +
+    geom_smooth(method=lm, formula = y ~ poly(x, 3, raw=TRUE),
+              color="red", fullrange = T,
+              fill="#69b3a2", 
+              se=TRUE)
+```
+
+# # 9
+
+```{r}
+age_charges_scatter +
+    geom_smooth(aes(group = smoker, color = smoker, fill = smoker),method=lm, formula = y ~ poly(x, 3, raw=TRUE),
+              fullrange = T,
+              se=TRUE)
+```
+
+# # 10
+
+```{r}
+ggplot(data = insurance, aes(x=bmi, y=charges, color = smoker)) + 
+  geom_point() + 
+  theme_light() +
+  theme(axis.title.x = element_text(size=14)) +
+  labs(x = 'BMI', y = 'Charges')+
+  ggtitle('BMI to charges') +
+  geom_smooth(aes(group = smoker, fill = smoker),method=lm, formula = y ~ poly(x, 3, raw=TRUE),
+              fullrange = T,
+              se=TRUE)
+```
+
+# # 14
+
+```{r}
+insurance <- insurance %>% 
+  filter(age > 20) %>%
+  mutate(
+    age_group = case_when(
+      age < 35 ~ "age: 21-34",
+      age >= 35 & age < 50 ~ "age: 35-49",
+      age >= 50 ~ "age: 50+"
+    ))
+
+ggplot(data = insurance, aes(x=bmi, y=log(charges), group = age_group)) + 
+  geom_point(alpha = 0.5, color ="#360367", size = 2, shape = 16) + 
+  theme_minimal() +
+  labs(x = 'bmi', y = 'log(charges)')+
+  ggtitle('The ratio of body mass index to the logarithm of charges by age group.', ) +
+  geom_smooth(aes(color = age_group), method=lm,
+              fill="#ebebeb", 
+              fullrange = T,
+              se=TRUE) +
+  facet_grid(. ~ age_group) +
+  theme(legend.position="bottom",
+        plot.title = element_text(hjust = 0.5))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
