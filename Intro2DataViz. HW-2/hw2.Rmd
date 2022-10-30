@@ -1,0 +1,165 @@
+---
+title: "hw2"
+output: html_document
+date: "2022-10-29"
+header-includes:
+- \usepackage[russian]{babel}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(tibble)
+library(readr)
+library(purrr)
+library(plotly)
+library(corrplot)
+library(corrr)
+library(factoextra)
+```
+
+# Домашняя работа №1
+
+# # 1
+```{r load csv}
+insurance = read.csv('data/insurance_cost.csv', stringsAsFactors = T)
+summary(insurance)
+```
+
+# # 2
+
+```{r}
+plot_ly(
+  insurance,
+  x = ~ bmi,
+  y = ~ charges,
+  color = ~ smoker
+) %>% 
+  layout(legend=list(title=list(text='<b> Smoker </b>')))
+```
+
+# # 3
+
+```{r}
+scatter_gg <- ggplot(data = insurance, 
+       aes(x = bmi, y = charges, color = smoker)) +
+  geom_point()
+ggplotly(scatter_gg)
+```
+
+# # 4
+
+```{r}
+insurance_clear <- insurance %>% 
+  filter(age != 0 & bmi != 0 & charges != 0) %>% 
+  select(is.integer | is.numeric)
+
+insurance_cor <- cor(insurance_clear)
+corrplot(insurance_cor, method = 'pie')
+```
+```{r}
+corrplot(insurance_cor, method = 'shade')
+```
+
+Видно, что большего всего между собой коррелируют charges и age, и bmi и charges
+
+# # 5
+
+```{r}
+insurance_num <- insurance %>%
+    mutate(sex_bin = case_when(
+      sex == "female" ~ 0,
+      sex == "male" ~ 1
+  )) %>%
+    mutate(smoker_bin = case_when(
+      smoker == "yes" ~ 1,
+      smoker == "no" ~ 0
+  )) %>%
+    mutate(northeast = case_when(
+      region == "northeast" ~ 1,
+      region != "northeast" ~ 0
+  )) %>%
+    mutate(northwest = case_when(
+      region == "northwest" ~ 1,
+      region != "northwest" ~ 0
+  )) %>%
+    mutate(southwest = case_when(
+      region == "southwest" ~ 1,
+      region != "southwest" ~ 0
+  )) %>%
+    mutate(southeast = case_when(
+      region == "southeast" ~ 1,
+      region != "southeast" ~ 0
+  )) %>%
+  select(is.integer | is.numeric)
+head(insurance_num)
+```
+
+# # 6
+
+```{r}
+insurance_dist <- dist(scale(insurance_num), method = "euclidean")
+insurance_hc <- hclust(d = insurance_dist, 
+                        method = "ward.D2")
+fviz_dend(insurance_hc, 
+          cex = 1,
+          repel = TRUE)
+```
+
+# # 7
+
+```{r}
+insurance_grp <- cutree(insurance_hc, k = 3)
+fviz_cluster(list(data = insurance_dist, cluster = insurance_grp),
+  ellipse.type = "convex", 
+  repel = TRUE,
+  show.clust.cent = FALSE, ggtheme = theme_minimal())
+```
+
+При отображении иерархической кластреризации будем рассматривать наиболее коррелирующее переменные - bmi, age, charges.
+
+```{r}
+insurance_cor <- insurance_num %>% 
+  select('charges', 'age', 'bmi')
+insurance_dist_cor <- dist(scale(insurance_cor), method = "euclidean")
+insurance_hc_cor <- hclust(d = insurance_dist_cor, 
+                        method = "ward.D2")
+fviz_dend(insurance_hc_cor, k = 6, 
+  cex = 0.1,
+  color_labels_by_k = TRUE, 
+  rect = TRUE
+)
+```
+```{r}
+library(dendextend)
+
+insurance_hc_av <- hclust(insurance_dist_cor, method = "average")
+insurance_hc_ward <- hclust(insurance_dist_cor, method = "ward.D2")
+
+dend1 <- as.dendrogram (insurance_hc_av)
+dend2 <- as.dendrogram (insurance_hc_ward)
+
+tanglegram(dend1, dend2,
+highlight_distinct_edges = FALSE, # Turn-off dashed lines
+common_subtrees_color_lines = FALSE, # Turn-off line colors
+common_subtrees_color_branches = TRUE, # Color common branches
+main = paste("entanglement =", round(entanglement(dendlist(dend1, dend2)), 2))
+)
+```
+
+
+# # 8
+
+```{r}
+library(pheatmap)
+pheatmap(scale(insurance_num))
+```
+
+
+
+
