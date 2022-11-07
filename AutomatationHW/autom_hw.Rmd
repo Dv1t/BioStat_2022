@@ -1,0 +1,100 @@
+---
+title: "Задание после курса «Введение в автоматизацию обработки данных на R»"
+author: "Dravgelis V.A."
+date: "2022-11-07"
+output:
+  word_document: default
+  html_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(pROC)
+library(gtsummary)
+library(readxl)
+library(flextable)
+
+Sys.setlocale("LC_CTYPE", "russian")
+```
+
+# Загрузка данных, правка факторов, чисел которые неправильно считались и некоректных значений
+
+```{r}
+
+data <- read_excel('data/data_excel.xlsx', sheet = 'data')
+data <- data %>% 
+    filter(`Группа крови` != "NA") %>% 
+    mutate(across(c('Группа', 'Пол', 'Группа крови'), ~ as.factor(.x))) %>% 
+    mutate(across(where(is.character),~ as.numeric(gsub(',','.',.x)))) %>% 
+    filter(across(where(is.numeric), ~ .x > 0)) 
+```
+
+# Cтатистики по обеим группам
+
+```{r}
+stats <- list(
+  `_Количество субъектов` = ~length(.x) %>% as.character(),
+  `_Среднее` = ~mean(.x) %>% round(2) %>% as.character(),
+  `_Медиана` = ~median(.x) %>% round(2) %>% as.character(),
+  `_Стандартное отклонение` =  ~sd(.x) %>% round(2) %>% as.character(),
+  `_Границы 95% ДИ` =  ~paste0(Rmisc::CI(.x)['lower'] %>% round(2) %>% as.character(), " - " ,Rmisc::CI(.x)['upper'] %>% round(2) %>% as.character()),
+  `_Мин. - Макс.` = ~paste0(min(.x) %>% round(2) %>% as.character(), " - " , max(.x) %>% round(2) %>% as.character()),
+  `_Q1 - Q3` = ~paste0(quantile(.x, 0.25) %>% round(2), " - " , quantile(.x, 0.75 %>% round(2)))
+)
+
+data %>% 
+  group_by(`Группа`) %>% 
+  dplyr:: summarise(across(where(is.numeric), stats)) %>% 
+  pivot_longer(!'Группа') %>% 
+  separate(name, into = c("Переменная", "Статистика"), sep = "__") %>% 
+  dplyr::rename(`Значение` = `value`) %>% 
+  flextable() %>% 
+  theme_box() %>% 
+  autofit()
+
+```
+
+# Сравнение групп
+
+```{r}
+data_group_1 <- data %>% 
+  filter(as.character(`Группа`) == 'Группа 1')
+
+data_group_2 <- data %>% 
+  filter(as.character(`Группа`) == 'Группа 2')
+
+group_1_stats <- data_group_1 %>% 
+  group_by(`Группа`) %>% 
+  summarise(across(where(is.numeric), stats)) %>% 
+  pivot_longer(!`Группа`) %>% 
+  separate(name, into = c("Переменная", "Статистика"), sep = "__") %>% 
+  rename(`Значение группы 1` = `value`)
+
+group_2_stats <- data_group_2 %>% 
+  group_by(`Группа`) %>% 
+  summarise(across(where(is.numeric), stats)) %>% 
+  pivot_longer(!'Группа') %>% 
+  separate(name, into = c("Переменная", "Статистика"), sep = "__") %>% 
+  rename(`Значение группы 2` = `value`)
+
+bind_cols(group_1_stats, select(group_2_stats, `Значение группы 2`)) %>% 
+  select(!`Группа`) %>% 
+  flextable() %>% 
+  theme_box() %>% 
+  autofit()
+
+
+```
+
+
+
+
+
+
+
+
