@@ -1,0 +1,86 @@
+---
+title: "Практикум по ANOVA и post hoc сравнениям"
+author: "Dravgelis V.A."
+date: "2022-11-25"
+output: 
+   html_document:
+       toc: true
+       toc_float:
+           collapsed: false
+           smooth_scroll: true
+       theme: flatly
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(pROC)
+library(gtsummary)
+library(Rmisc)
+library(multcomp)
+
+Sys.setlocale("LC_CTYPE", "russian")
+
+```
+
+
+```{r}
+soccer_general <- read.csv("data/soccer.csv", sep=";")[, 2:6] %>% 
+  mutate(Position = as.factor(Position), 
+         Nationality = as.factor(Nationality), 
+         Age = as.numeric(Age), 
+         Height = as.numeric(Height)
+  ) %>% 
+  filter(Nationality %in% c("Spanish", "Italian", "German", "English", "Argentinian")) 
+
+
+
+set.seed(1) 
+
+
+
+soccer_wrk <- soccer_general[sample(1:nrow(soccer_general), 150), ] %>% 
+  mutate(Nationality = factor(Nationality))
+```
+
+
+Проведём дисперсионный анализ с помощью теста Велша
+
+```{r}
+oneway.test(Height ~ Position, data = soccer_wrk)
+```
+
+Мы получили p-value равную 1.288e-07, что сильно меньше общепринятых 0.05, значит нулевая гипотеза об отсутсвии связи между ростом футболиста и его позицией на поле отвергается, и связь есть.
+
+```{r}
+m0 <- lm(Height ~ Position, data = soccer_wrk)
+HBW.comp <- m0 %>% glht(linfct = mcp(Position = "Tukey"))
+HBW.comp %>% summary()
+```
+
+Весомая разница есть у пар: Goalkeeper - Defender, Midfielder - Defender, Goalkeeper - Forward и Midfielder - Goalkeeper. Вот они в порядке возрастания (в прямом смысле =) ): Goalkeeper, Defender, Forward, Midfielder.
+
+В прошлом ДЗ было получено столько же "открытий", но здесь уменьшена вероятность ошибок второго рода.
+
+
+Теперь выясним связан ли рост футболиста с его национальностью
+```{r}
+oneway.test(Height ~ Nationality, data = soccer_wrk)
+
+```
+
+p-value достаточно большой и связи как-будто бы совсем нет, но давайте в этом убедимся
+
+```{r}
+m0 <- lm(Height ~ Nationality, data = soccer_wrk)
+HBW.comp <- m0 %>% glht(linfct = mcp(Nationality = "Tukey"))
+HBW.comp %>% summary()
+```
+
+Вот теперь мы точно можем сказать, что связью между ростом футболиста и его национальностью (по крайней мере из тех, что мы проверили) - нет.
+
+
